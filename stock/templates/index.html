@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html lang="en" data-bs-theme="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Stock Market Dashboard</title>
+    <!-- Bootstrap CSS - Replit Dark Theme -->
+    <link rel="stylesheet" href="https://cdn.replit.com/agent/bootstrap-agent-dark-theme.min.css">
+    <!-- Font Awesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <!-- Custom CSS -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/custom.css') }}">
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+    <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
+        <div class="container">
+            <a class="navbar-brand" href="#">
+                <i class="fas fa-chart-line me-2"></i>
+                Stock Market Dashboard
+            </a>
+        </div>
+    </nav>
+
+    <div class="container mt-4">
+        <!-- Stock Search Form -->
+        <div class="card mb-4">
+            <div class="card-body">
+                <form id="stock-search-form" class="row g-3 align-items-center">
+                    <div class="col-md-6">
+                        <div class="input-group">
+                            <span class="input-group-text">
+                                <i class="fas fa-search"></i>
+                            </span>
+                            <input type="text" id="stock-symbol" class="form-control form-control-lg" 
+                                   placeholder="Enter Stock Symbol (e.g., AAPL)" required>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <select id="time-period" class="form-select form-select-lg">
+                            <option value="1d">1 Day</option>
+                            <option value="5d">5 Days</option>
+                            <option value="1mo" selected>1 Month</option>
+                            <option value="3mo">3 Months</option>
+                            <option value="6mo">6 Months</option>
+                            <option value="1y">1 Year</option>
+                            <option value="2y">2 Years</option>
+                            <option value="5y">5 Years</option>
+                            <option value="max">Max</option>
+                        </select>
+                    </div>
+                    <div class="col-md-3">
+                        <button type="submit" class="btn btn-primary btn-lg w-100">
+                            <i class="fas fa-search me-2"></i>Get Data
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- Loading Spinner -->
+        <div id="loading-spinner" class="text-center my-5 d-none">
+            <div class="spinner-border text-primary" role="status" style="width: 3rem; height: 3rem;">
+                <span class="visually-hidden">Loading...</span>
+            </div>
+            <p class="mt-2">Fetching stock data...</p>
+        </div>
+
+        <!-- Error Alert -->
+        <div id="error-alert" class="alert alert-danger d-none" role="alert">
+            <i class="fas fa-exclamation-triangle me-2"></i>
+            <span id="error-message">Error fetching stock data</span>
+        </div>
+
+        <!-- Stock Information -->
+        <div id="stock-data-container" class="d-none">
+            <!-- Stock Header -->
+            <div class="card mb-4">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h1 id="stock-name" class="display-6 mb-0">Apple Inc. (AAPL)</h1>
+                            <p class="text-muted mb-0">
+                                <span id="stock-exchange">NASDAQ</span> • 
+                                Last updated: <span id="last-updated">Loading...</span>
+                            </p>
+                        </div>
+                        <div class="text-end">
+                            <h2 id="stock-price" class="display-6 mb-0">$0.00</h2>
+                            <p id="stock-change" class="mb-0"><span class="badge bg-success">+0.00 (0.00%)</span></p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="row">
+                <!-- Chart -->
+                <div class="col-lg-8">
+                    <div class="card mb-4">
+                        <div class="card-header">
+                            <h5 class="card-title mb-0">
+                                <i class="fas fa-chart-line me-2"></i>Price History
+                            </h5>
+                        </div>
+                        <div class="card-body">
+                            <canvas id="price-chart" height="300"></canvas>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Key Metrics -->
+                <div class="col-lg-4">
+                    <div class="card mb-4">
+                        <div class="card-header">
+                            <h5 class="card-title mb-0">
+                                <i class="fas fa-info-circle me-2"></i>Key Metrics
+                            </h5>
+                        </div>
+                        <div class="card-body p-0">
+                            <table class="table table-hover mb-0">
+                                <tbody>
+                                    <tr>
+                                        <td>Previous Close</td>
+                                        <td id="previous-close" class="text-end">$0.00</td>
+                                    </tr>
+                                    <tr>
+                                        <td>Open</td>
+                                        <td id="open-price" class="text-end">$0.00</td>
+                                    </tr>
+                                    <tr>
+                                        <td>Day's Range</td>
+                                        <td id="day-range" class="text-end">$0.00 - $0.00</td>
+                                    </tr>
+                                    <tr>
+                                        <td>52 Week Range</td>
+                                        <td id="52-week-range" class="text-end">$0.00 - $0.00</td>
+                                    </tr>
+                                    <tr>
+                                        <td>Volume</td>
+                                        <td id="volume" class="text-end">0</td>
+                                    </tr>
+                                    <tr>
+                                        <td>Avg. Volume</td>
+                                        <td id="avg-volume" class="text-end">0</td>
+                                    </tr>
+                                    <tr>
+                                        <td>Market Cap</td>
+                                        <td id="market-cap" class="text-end">$0.00B</td>
+                                    </tr>
+                                    <tr>
+                                        <td>P/E Ratio</td>
+                                        <td id="pe-ratio" class="text-end">0.00</td>
+                                    </tr>
+                                    <tr>
+                                        <td>EPS (TTM)</td>
+                                        <td id="eps" class="text-end">$0.00</td>
+                                    </tr>
+                                    <tr>
+                                        <td>Dividend Yield</td>
+                                        <td id="dividend-yield" class="text-end">0.00%</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Volume Chart -->
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">
+                        <i class="fas fa-chart-bar me-2"></i>Volume History
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <canvas id="volume-chart" height="150"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <!-- Auto-refresh Toggle -->
+        <div class="form-check form-switch mb-4">
+            <input class="form-check-input" type="checkbox" id="auto-refresh-toggle">
+            <label class="form-check-label" for="auto-refresh-toggle">
+                Auto-refresh data every 60 seconds
+            </label>
+        </div>
+    </div>
+
+    <footer class="bg-dark text-light py-4 mt-5">
+        <div class="container">
+            <div class="row">
+                <div class="col-md-6">
+                    <p class="mb-0">
+                        <i class="fas fa-chart-line me-2"></i>Stock Market Dashboard
+                    </p>
+                    <p class="small text-muted">
+                        Data provided by Yahoo Finance API
+                    </p>
+                </div>
+                <div class="col-md-6 text-md-end">
+                    <p class="small text-muted mb-0">
+                        Disclaimer: This dashboard is for informational purposes only.
+                        Not financial advice.
+                    </p>
+                </div>
+            </div>
+        </div>
+    </footer>
+
+    <!-- Bootstrap Bundle with Popper -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <!-- Custom JavaScript -->
+    <script src="{{ url_for('static', filename='js/stock_dashboard.js') }}"></script>
+</body>
+</html>
