@@ -531,104 +531,46 @@
                 stockDataContainer.classList.remove('d-none');
             }
             
-            // Fetch stock data from the Twelve Data API
+            // Fetch stock data - this is a demo version that uses pre-defined data
             function fetchStockData(symbol, period = '1mo') {
                 // Show loading spinner, hide error and data container
                 loadingSpinner.classList.remove('d-none');
                 errorAlert.classList.add('d-none');
                 stockDataContainer.classList.add('d-none');
                 
-                // Map our period values to Yahoo Finance intervals
-                const periodMap = {
-                    '1d': {interval: '1h', range: '1d'},
-                    '5d': {interval: '1h', range: '5d'},
-                    '1mo': {interval: '1d', range: '1mo'},
-                    '3mo': {interval: '1d', range: '3mo'},
-                    '6mo': {interval: '1d', range: '6mo'},
-                    '1y': {interval: '1wk', range: '1y'},
-                    '2y': {interval: '1wk', range: '2y'},
-                    '5y': {interval: '1mo', range: '5y'},
-                    'max': {interval: '1mo', range: 'max'}
-                };
-                
-                const yahooInterval = periodMap[period].interval;
-                const yahooRange = periodMap[period].range;
-                
-                // For demonstration purpose, we'll use a CORS proxy to access Yahoo Finance API
-                // In a production environment, this should be replaced with your own backend service
-                const corsProxy = 'https://cors-anywhere.herokuapp.com/';
-                const yahooQuoteUrl = `${corsProxy}https://query1.finance.yahoo.com/v7/finance/quote?symbols=${symbol}`;
-                const yahooChartUrl = `${corsProxy}https://query1.finance.yahoo.com/v8/finance/chart/${symbol}?interval=${yahooInterval}&range=${yahooRange}`;
-                
-                // First get the quote data
-                fetch(yahooQuoteUrl, {
-                    headers: {
-                        'X-Requested-With': 'XMLHttpRequest'
-                    }
-                })
-                .then(response => {
-                    if (!response.ok) {
-                        throw new Error('Network response was not ok');
-                    }
-                    return response.json();
-                })
-                .then(quoteData => {
-                    if (!quoteData.quoteResponse || !quoteData.quoteResponse.result || quoteData.quoteResponse.result.length === 0) {
-                        throw new Error('No data found for the symbol: ' + symbol);
-                    }
-                    
-                    const stockData = quoteData.quoteResponse.result[0];
-                    
-                    // Now get the chart data
-                    return fetch(yahooChartUrl, {
-                        headers: {
-                            'X-Requested-With': 'XMLHttpRequest'
-                        }
-                    })
-                    .then(response => {
-                        if (!response.ok) {
-                            throw new Error('Network response was not ok');
-                        }
-                        return response.json();
-                    })
-                    .then(chartData => {
-                        if (!chartData.chart || !chartData.chart.result || chartData.chart.result.length === 0) {
-                            throw new Error('No chart data found for the symbol: ' + symbol);
-                        }
-                        
-                        const result = chartData.chart.result[0];
-                        const timestamps = result.timestamp || [];
-                        const quotes = result.indicators.quote[0] || {};
-                        const closes = quotes.close || [];
-                        const volumes = quotes.volume || [];
-                        
-                        // Process dates for the chart
-                        const dates = timestamps.map(timestamp => {
-                            const date = new Date(timestamp * 1000);
-                            return date.toLocaleDateString();
-                        });
-                        
-                        // Update the UI with the stock and chart data
-                        updateStockData(stockData);
-                        
-                        // Create charts
-                        createPriceChart(dates, closes);
-                        createVolumeChart(dates, volumes);
-                        
-                        // Update the current symbol and period for auto-refresh
+                // Simulate network delay
+                setTimeout(() => {
+                    try {
+                        // Update the current symbol and period
                         currentSymbol = symbol;
                         currentPeriod = period;
-                    });
-                })
-                .catch(error => {
-                    console.error('Error fetching stock data:', error);
-                    errorMessage.textContent = error.message || 'An error occurred while fetching stock data';
-                    errorAlert.classList.remove('d-none');
-                    stockDataContainer.classList.add('d-none');
-                })
-                .finally(() => {
-                    loadingSpinner.classList.add('d-none');
-                });
+                        
+                        // Create a custom demo data object based on the requested symbol
+                        const customDemoData = {
+                            ...demoData,
+                            symbol: symbol,
+                            shortName: `${symbol} Inc.`,
+                            longName: `${symbol} Corporation`
+                        };
+                        
+                        // Update the UI with the stock data
+                        updateStockData(customDemoData);
+                        
+                        // Create/update the charts
+                        createPriceChart(demoChartData.dates, demoChartData.prices);
+                        createVolumeChart(demoChartData.dates, demoChartData.volumes);
+                        
+                        // Show the stock data container
+                        stockDataContainer.classList.remove('d-none');
+                    } catch (error) {
+                        console.error('Error processing demo data:', error);
+                        errorMessage.textContent = 'An error occurred while processing demo data';
+                        errorAlert.classList.remove('d-none');
+                        stockDataContainer.classList.add('d-none');
+                    } finally {
+                        loadingSpinner.classList.add('d-none');
+                    }
+                }, 800); // Simulate loading time
             }
             
             // Handle form submission
@@ -693,31 +635,28 @@
             
             // For the chart data, we'll generate some realistic-looking data
             const demoChartData = {
-                dates: [],
-                prices: [],
-                volumes: []
+                dates: [
+                    "3/4/2025", "3/5/2025", "3/6/2025", "3/7/2025", "3/10/2025", 
+                    "3/11/2025", "3/12/2025", "3/13/2025", "3/14/2025", "3/17/2025", 
+                    "3/18/2025", "3/19/2025", "3/20/2025", "3/21/2025", "3/24/2025", 
+                    "3/25/2025", "3/26/2025", "3/27/2025", "3/28/2025", "3/31/2025", 
+                    "4/1/2025", "4/2/2025"
+                ],
+                prices: [
+                    175.18, 176.83, 178.54, 177.72, 180.31, 
+                    182.45, 181.92, 183.79, 184.36, 187.23, 
+                    185.91, 184.85, 186.24, 187.58, 188.12,
+                    190.37, 189.43, 190.62, 193.27, 191.84,
+                    190.93, 188.52
+                ],
+                volumes: [
+                    58729400, 62841200, 54392800, 53719600, 67482900,
+                    73829100, 60349200, 58374100, 69273800, 72938400,
+                    66492300, 57382900, 61829400, 73928400, 68273900,
+                    79483200, 65928400, 59384200, 76928400, 68273500,
+                    59827300, 62382400
+                ]
             };
-            
-            // Generate 30 days of data
-            const today = new Date();
-            let price = 180;
-            const volatility = 2;
-            
-            for (let i = 30; i >= 0; i--) {
-                const date = new Date();
-                date.setDate(today.getDate() - i);
-                
-                // Random walk for price with some trend
-                const change = (Math.random() - 0.45) * volatility;
-                price = Math.max(price + change, 150);
-                
-                // Random volume
-                const volume = Math.floor(Math.random() * 100000000) + 30000000;
-                
-                demoChartData.dates.push(date.toLocaleDateString());
-                demoChartData.prices.push(price);
-                demoChartData.volumes.push(volume);
-            }
             
             // Instead of actual API call, use the demo data
             updateStockData(demoData);
@@ -735,7 +674,7 @@
                 <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
             `;
             
-            document.querySelector('.container').insertBefore(demoAlert, document.getElementById('loading-spinner'));
+            document.querySelector('.container').insertBefore(demoAlert, loadingSpinner);
         });
     </script>
 </body>
