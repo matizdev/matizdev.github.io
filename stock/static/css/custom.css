@@ -1,0 +1,83 @@
+/* Custom styles to enhance the stock dashboard */
+
+/* Focus outline for accessibility */
+:focus {
+  outline: 2px solid var(--bs-primary);
+  outline-offset: 2px;
+}
+
+/* Enhance table readability */
+.table tbody tr:hover {
+  background-color: rgba(13, 110, 253, 0.05);
+}
+
+/* Stock price change animation */
+@keyframes priceChange {
+  0% { transform: scale(1); }
+  50% { transform: scale(1.05); }
+  100% { transform: scale(1); }
+}
+
+.price-updated {
+  animation: priceChange 0.5s ease-in-out;
+}
+
+/* Responsive fixes */
+@media (max-width: 767.98px) {
+  .display-6 {
+    font-size: 1.5rem;
+  }
+  
+  .card-title {
+    font-size: 1rem;
+  }
+  
+  .table {
+    font-size: 0.875rem;
+  }
+}
+
+/* Chart tooltip styling */
+.chartjs-tooltip {
+  background-color: rgba(33, 37, 41, 0.9) !important;
+  border: 1px solid rgba(255, 255, 255, 0.2) !important;
+  border-radius: 4px !important;
+  color: #fff !important;
+  font-family: var(--bs-body-font-family) !important;
+  font-size: 0.875rem !important;
+  padding: 0.5rem !important;
+}
+
+/* Make sure the charts have proper height on small screens */
+@media (max-width: 575.98px) {
+  #price-chart,
+  #volume-chart {
+    height: 250px !important;
+  }
+}
+
+/* Smooth transitions for state changes */
+.card,
+.alert,
+.form-control,
+.btn {
+  transition: all 0.2s ease-in-out;
+}
+
+/* Style the search form for better visibility */
+#stock-search-form .form-control:focus,
+#stock-search-form .form-select:focus {
+  box-shadow: 0 0 0 0.25rem rgba(13, 110, 253, 0.25);
+  border-color: var(--bs-primary);
+}
+
+/* Custom switch style for auto-refresh toggle */
+.form-switch .form-check-input:checked {
+  background-color: var(--bs-primary);
+  border-color: var(--bs-primary);
+}
+
+/* Improve spinner visibility */
+.spinner-border {
+  border-width: 0.2em;
+}
