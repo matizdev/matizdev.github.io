@@ -1,0 +1,796 @@
+<!DOCTYPE html>
+<html lang="en" data-bs-theme="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Stock Market Dashboard</title>
+    <!-- Bootstrap CSS - Replit Dark Theme -->
+    <link rel="stylesheet" href="https://cdn.replit.com/agent/bootstrap-agent-dark-theme.min.css">
+    <!-- Font Awesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        /* Focus outline for accessibility */
+        :focus {
+          outline: 2px solid var(--bs-primary);
+          outline-offset: 2px;
+        }
+        
+        /* Enhance table readability */
+        .table tbody tr:hover {
+          background-color: rgba(13, 110, 253, 0.05);
+        }
+        
+        /* Stock price change animation */
+        @keyframes priceChange {
+          0% { transform: scale(1); }
+          50% { transform: scale(1.05); }
+          100% { transform: scale(1); }
+        }
+        
+        .price-updated {
+          animation: priceChange 0.5s ease-in-out;
+        }
+        
+        /* Responsive fixes */
+        @media (max-width: 767.98px) {
+          .display-6 {
+            font-size: 1.5rem;
+          }
+          
+          .card-title {
+            font-size: 1rem;
+          }
+          
+          .table {
+            font-size: 0.875rem;
+          }
+        }
+        
+        /* Chart tooltip styling */
+        .chartjs-tooltip {
+          background-color: rgba(33, 37, 41, 0.9) !important;
+          border: 1px solid rgba(255, 255, 255, 0.2) !important;
+          border-radius: 4px !important;
+          color: #fff !important;
+          font-family: var(--bs-body-font-family) !important;
+          font-size: 0.875rem !important;
+          padding: 0.5rem !important;
+        }
+        
+        /* Make sure the charts have proper height on small screens */
+        @media (max-width: 575.98px) {
+          #price-chart,
+          #volume-chart {
+            height: 250px !important;
+          }
+        }
+        
+        /* Smooth transitions for state changes */
+        .card,
+        .alert,
+        .form-control,
+        .btn {
+          transition: all 0.2s ease-in-out;
+        }
+        
+        /* Style the search form for better visibility */
+        #stock-search-form .form-control:focus,
+        #stock-search-form .form-select:focus {
+          box-shadow: 0 0 0 0.25rem rgba(13, 110, 253, 0.25);
+          border-color: var(--bs-primary);
+        }
+        
+        /* Custom switch style for auto-refresh toggle */
+        .form-switch .form-check-input:checked {
+          background-color: var(--bs-primary);
+          border-color: var(--bs-primary);
+        }
+        
+        /* Improve spinner visibility */
+        .spinner-border {
+          border-width: 0.2em;
+        }
+    </style>
+</head>
+<body>
+    <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
+        <div class="container">
+            <a class="navbar-brand" href="#">
+                <i class="fas fa-chart-line me-2"></i>
+                Stock Market Dashboard
+            </a>
+        </div>
+    </nav>
+
+    <div class="container mt-4">
+        <!-- Stock Search Form -->
+        <div class="card mb-4">
+            <div class="card-body">
+                <form id="stock-search-form" class="row g-3 align-items-center">
+                    <div class="col-md-6">
+                        <div class="input-group">
+                            <span class="input-group-text">
+                                <i class="fas fa-search"></i>
+                            </span>
+                            <input type="text" id="stock-symbol" class="form-control form-control-lg" 
+                                   placeholder="Enter Stock Symbol (e.g., AAPL)" required>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <select id="time-period" class="form-select form-select-lg">
+                            <option value="1d">1 Day</option>
+                            <option value="5d">5 Days</option>
+                            <option value="1mo" selected>1 Month</option>
+                            <option value="3mo">3 Months</option>
+                            <option value="6mo">6 Months</option>
+                            <option value="1y">1 Year</option>
+                            <option value="2y">2 Years</option>
+                            <option value="5y">5 Years</option>
+                            <option value="max">Max</option>
+                        </select>
+                    </div>
+                    <div class="col-md-3">
+                        <button type="submit" class="btn btn-primary btn-lg w-100">
+                            <i class="fas fa-search me-2"></i>Get Data
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- API Key Input -->
+        <div class="card mb-4" id="api-key-card">
+            <div class="card-body">
+                <div class="row g-3 align-items-center">
+                    <div class="col-md-9">
+                        <label for="api-key" class="form-label">Alpha Vantage API Key</label>
+                        <input type="text" id="api-key" class="form-control" 
+                               placeholder="Enter your Alpha Vantage API key">
+                        <div class="form-text">
+                            Get a free API key at <a href="https://www.alphavantage.co/support/#api-key" target="_blank">Alpha Vantage</a>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <button id="save-api-key" class="btn btn-success w-100 mt-4">
+                            <i class="fas fa-save me-2"></i>Save Key
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Loading Spinner -->
+        <div id="loading-spinner" class="text-center my-5 d-none">
+            <div class="spinner-border text-primary" role="status" style="width: 3rem; height: 3rem;">
+                <span class="visually-hidden">Loading...</span>
+            </div>
+            <p class="mt-2">Fetching stock data...</p>
+        </div>
+
+        <!-- Error Alert -->
+        <div id="error-alert" class="alert alert-danger d-none" role="alert">
+            <i class="fas fa-exclamation-triangle me-2"></i>
+            <span id="error-message">Error fetching stock data</span>
+        </div>
+
+        <!-- Stock Information -->
+        <div id="stock-data-container" class="d-none">
+            <!-- Stock Header -->
+            <div class="card mb-4">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h1 id="stock-name" class="display-6 mb-0">Apple Inc. (AAPL)</h1>
+                            <p class="text-muted mb-0">
+                                <span id="stock-exchange">NASDAQ</span> • 
+                                Last updated: <span id="last-updated">Loading...</span>
+                            </p>
+                        </div>
+                        <div class="text-end">
+                            <h2 id="stock-price" class="display-6 mb-0">$0.00</h2>
+                            <p id="stock-change" class="mb-0"><span class="badge bg-success">+0.00 (0.00%)</span></p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="row">
+                <!-- Chart -->
+                <div class="col-lg-8">
+                    <div class="card mb-4">
+                        <div class="card-header">
+                            <h5 class="card-title mb-0">
+                                <i class="fas fa-chart-line me-2"></i>Price History
+                            </h5>
+                        </div>
+                        <div class="card-body">
+                            <canvas id="price-chart" height="300"></canvas>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Key Metrics -->
+                <div class="col-lg-4">
+                    <div class="card mb-4">
+                        <div class="card-header">
+                            <h5 class="card-title mb-0">
+                                <i class="fas fa-info-circle me-2"></i>Key Metrics
+                            </h5>
+                        </div>
+                        <div class="card-body p-0">
+                            <table class="table table-hover mb-0">
+                                <tbody>
+                                    <tr>
+                                        <td>Previous Close</td>
+                                        <td id="previous-close" class="text-end">$0.00</td>
+                                    </tr>
+                                    <tr>
+                                        <td>Open</td>
+                                        <td id="open-price" class="text-end">$0.00</td>
+                                    </tr>
+                                    <tr>
+                                        <td>Day's Range</td>
+                                        <td id="day-range" class="text-end">$0.00 - $0.00</td>
+                                    </tr>
+                                    <tr>
+                                        <td>52 Week Range</td>
+                                        <td id="52-week-range" class="text-end">$0.00 - $0.00</td>
+                                    </tr>
+                                    <tr>
+                                        <td>Volume</td>
+                                        <td id="volume" class="text-end">0</td>
+                                    </tr>
+                                    <tr>
+                                        <td>Avg. Volume</td>
+                                        <td id="avg-volume" class="text-end">0</td>
+                                    </tr>
+                                    <tr>
+                                        <td>Market Cap</td>
+                                        <td id="market-cap" class="text-end">$0.00B</td>
+                                    </tr>
+                                    <tr>
+                                        <td>P/E Ratio</td>
+                                        <td id="pe-ratio" class="text-end">0.00</td>
+                                    </tr>
+                                    <tr>
+                                        <td>EPS (TTM)</td>
+                                        <td id="eps" class="text-end">$0.00</td>
+                                    </tr>
+                                    <tr>
+                                        <td>Dividend Yield</td>
+                                        <td id="dividend-yield" class="text-end">0.00%</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Volume Chart -->
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">
+                        <i class="fas fa-chart-bar me-2"></i>Volume History
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <canvas id="volume-chart" height="150"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <!-- Auto-refresh Toggle -->
+        <div class="form-check form-switch mb-4">
+            <input class="form-check-input" type="checkbox" id="auto-refresh-toggle">
+            <label class="form-check-label" for="auto-refresh-toggle">
+                Auto-refresh data every 60 seconds
+            </label>
+        </div>
+    </div>
+
+    <footer class="bg-dark text-light py-4 mt-5">
+        <div class="container">
+            <div class="row">
+                <div class="col-md-6">
+                    <p class="mb-0">
+                        <i class="fas fa-chart-line me-2"></i>Stock Market Dashboard
+                    </p>
+                    <p class="small text-muted">
+                        Data provided by Alpha Vantage API
+                    </p>
+                </div>
+                <div class="col-md-6 text-md-end">
+                    <p class="small text-muted mb-0">
+                        Disclaimer: This dashboard is for informational purposes only.
+                        Not financial advice.
+                    </p>
+                </div>
+            </div>
+        </div>
+    </footer>
+
+    <!-- Bootstrap Bundle with Popper -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    
+    <!-- Custom JavaScript -->
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // DOM elements
+            const stockSearchForm = document.getElementById('stock-search-form');
+            const stockSymbolInput = document.getElementById('stock-symbol');
+            const timePeriodSelect = document.getElementById('time-period');
+            const loadingSpinner = document.getElementById('loading-spinner');
+            const errorAlert = document.getElementById('error-alert');
+            const errorMessage = document.getElementById('error-message');
+            const stockDataContainer = document.getElementById('stock-data-container');
+            const autoRefreshToggle = document.getElementById('auto-refresh-toggle');
+            const apiKeyInput = document.getElementById('api-key');
+            const saveApiKeyBtn = document.getElementById('save-api-key');
+            const apiKeyCard = document.getElementById('api-key-card');
+            
+            // Chart instances
+            let priceChart = null;
+            let volumeChart = null;
+            
+            // Current stock symbol and time period
+            let currentSymbol = 'AAPL'; // Default stock
+            let currentPeriod = '1mo'; // Default period
+            
+            // Auto-refresh interval
+            let refreshInterval = null;
+            const REFRESH_INTERVAL_SECONDS = 60;
+            
+            // API Key
+            let apiKey = localStorage.getItem('alpha_vantage_api_key') || '';
+            
+            // If API key is already saved, hide the API key card
+            if (apiKey) {
+                apiKeyInput.value = apiKey;
+                // We'll still show the API key card, but could hide it with:
+                // apiKeyCard.classList.add('d-none');
+            }
+            
+            // Save API key to local storage
+            saveApiKeyBtn.addEventListener('click', function() {
+                const key = apiKeyInput.value.trim();
+                if (key) {
+                    apiKey = key;
+                    localStorage.setItem('alpha_vantage_api_key', key);
+                    // Could hide the API key card:
+                    // apiKeyCard.classList.add('d-none');
+                    
+                    // Show a success message
+                    const successAlert = document.createElement('div');
+                    successAlert.className = 'alert alert-success alert-dismissible fade show';
+                    successAlert.innerHTML = `
+                        <i class="fas fa-check-circle me-2"></i>
+                        API key saved successfully!
+                        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                    `;
+                    apiKeyCard.insertAdjacentElement('afterend', successAlert);
+                    
+                    // Try to fetch data for the default stock
+                    fetchStockData(currentSymbol, currentPeriod);
+                } else {
+                    // Show an error message
+                    alert('Please enter a valid API key');
+                }
+            });
+            
+            // Format numbers
+            function formatNumber(num) {
+                return num ? num.toLocaleString() : '0';
+            }
+            
+            // Format currency
+            function formatCurrency(num, currency = 'USD') {
+                if (!num) return '$0.00';
+                return new Intl.NumberFormat('en-US', {
+                    style: 'currency',
+                    currency: currency
+                }).format(num);
+            }
+            
+            // Format market cap
+            function formatMarketCap(marketCap) {
+                if (!marketCap) return '$0';
+                
+                if (marketCap >= 1e12) {
+                    return '$' + (marketCap / 1e12).toFixed(2) + 'T';
+                } else if (marketCap >= 1e9) {
+                    return '$' + (marketCap / 1e9).toFixed(2) + 'B';
+                } else if (marketCap >= 1e6) {
+                    return '$' + (marketCap / 1e6).toFixed(2) + 'M';
+                } else {
+                    return '$' + formatNumber(marketCap);
+                }
+            }
+            
+            // Create or update the price chart
+            function createPriceChart(dates, prices) {
+                const ctx = document.getElementById('price-chart').getContext('2d');
+                
+                // Destroy existing chart if it exists
+                if (priceChart) {
+                    priceChart.destroy();
+                }
+                
+                priceChart = new Chart(ctx, {
+                    type: 'line',
+                    data: {
+                        labels: dates,
+                        datasets: [{
+                            label: 'Price',
+                            data: prices,
+                            borderColor: '#0d6efd',
+                            backgroundColor: 'rgba(13, 110, 253, 0.1)',
+                            borderWidth: 2,
+                            pointRadius: 0,
+                            pointHoverRadius: 5,
+                            fill: true,
+                            tension: 0.1
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: {
+                                display: false
+                            },
+                            tooltip: {
+                                mode: 'index',
+                                intersect: false,
+                                callbacks: {
+                                    label: function(context) {
+                                        return formatCurrency(context.raw);
+                                    }
+                                }
+                            }
+                        },
+                        scales: {
+                            x: {
+                                grid: {
+                                    display: false
+                                },
+                                ticks: {
+                                    maxRotation: 0,
+                                    autoSkip: true,
+                                    maxTicksLimit: 10
+                                }
+                            },
+                            y: {
+                                grid: {
+                                    borderDash: [2, 2]
+                                },
+                                ticks: {
+                                    callback: function(value) {
+                                        return formatCurrency(value);
+                                    }
+                                }
+                            }
+                        },
+                        interaction: {
+                            mode: 'nearest',
+                            axis: 'x',
+                            intersect: false
+                        }
+                    }
+                });
+            }
+            
+            // Create or update the volume chart
+            function createVolumeChart(dates, volumes) {
+                const ctx = document.getElementById('volume-chart').getContext('2d');
+                
+                // Destroy existing chart if it exists
+                if (volumeChart) {
+                    volumeChart.destroy();
+                }
+                
+                volumeChart = new Chart(ctx, {
+                    type: 'bar',
+                    data: {
+                        labels: dates,
+                        datasets: [{
+                            label: 'Volume',
+                            data: volumes,
+                            backgroundColor: 'rgba(52, 152, 219, 0.5)',
+                            borderColor: 'rgba(52, 152, 219, 1)',
+                            borderWidth: 1
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: {
+                                display: false
+                            },
+                            tooltip: {
+                                mode: 'index',
+                                intersect: false,
+                                callbacks: {
+                                    label: function(context) {
+                                        return 'Volume: ' + formatNumber(context.raw);
+                                    }
+                                }
+                            }
+                        },
+                        scales: {
+                            x: {
+                                grid: {
+                                    display: false
+                                },
+                                ticks: {
+                                    maxRotation: 0,
+                                    autoSkip: true,
+                                    maxTicksLimit: 10
+                                }
+                            },
+                            y: {
+                                grid: {
+                                    borderDash: [2, 2]
+                                },
+                                ticks: {
+                                    callback: function(value) {
+                                        if (value >= 1e9) {
+                                            return (value / 1e9).toFixed(1) + 'B';
+                                        } else if (value >= 1e6) {
+                                            return (value / 1e6).toFixed(1) + 'M';
+                                        } else if (value >= 1e3) {
+                                            return (value / 1e3).toFixed(1) + 'K';
+                                        }
+                                        return value;
+                                    }
+                                }
+                            }
+                        },
+                        interaction: {
+                            mode: 'nearest',
+                            axis: 'x',
+                            intersect: false
+                        }
+                    }
+                });
+            }
+            
+            // Update the UI with stock data
+            function updateStockData(quoteData, timeSeriesData) {
+                // Extract company name and symbol
+                const symbol = stockSymbolInput.value.toUpperCase() || currentSymbol;
+                let companyName = "Unknown";
+                
+                // For Alpha Vantage data structure
+                if (quoteData["Global Quote"]) {
+                    const quote = quoteData["Global Quote"];
+                    
+                    // Update the stock header
+                    document.getElementById('stock-name').textContent = `${companyName} (${symbol})`;
+                    document.getElementById('stock-exchange').textContent = "Market";
+                    document.getElementById('stock-price').textContent = formatCurrency(parseFloat(quote["05. price"]) || 0);
+                    document.getElementById('last-updated').textContent = new Date().toLocaleTimeString();
+                    
+                    // Update the stock change
+                    const changeEl = document.getElementById('stock-change');
+                    const change = parseFloat(quote["09. change"]) || 0;
+                    const changePercent = parseFloat(quote["10. change percent"].replace('%', '')) || 0;
+                    
+                    let changeText = `${change >= 0 ? '+' : ''}${formatCurrency(change)} (${changePercent >= 0 ? '+' : ''}${changePercent.toFixed(2)}%)`;
+                    let badgeClass = change >= 0 ? 'bg-success' : 'bg-danger';
+                    
+                    changeEl.innerHTML = `<span class="badge ${badgeClass}">${changeText}</span>`;
+                    
+                    // Update key metrics
+                    document.getElementById('previous-close').textContent = formatCurrency(parseFloat(quote["08. previous close"]) || 0);
+                    document.getElementById('open-price').textContent = formatCurrency(parseFloat(quote["02. open"]) || 0);
+                    // For day's range and other metrics we might need additional API calls
+                    document.getElementById('day-range').textContent = "N/A";
+                    document.getElementById('52-week-range').textContent = "N/A";
+                    document.getElementById('volume').textContent = formatNumber(parseInt(quote["06. volume"]) || 0);
+                    document.getElementById('avg-volume').textContent = "N/A";
+                    document.getElementById('market-cap').textContent = "N/A";
+                    document.getElementById('pe-ratio').textContent = "N/A";
+                    document.getElementById('eps').textContent = "N/A";
+                    document.getElementById('dividend-yield').textContent = "N/A";
+                }
+                
+                // Process time series data for charts
+                if (timeSeriesData) {
+                    const timeSeries = timeSeriesData["Time Series (Daily)"] || 
+                                      timeSeriesData["Time Series (60min)"] || 
+                                      timeSeriesData["Time Series (Weekly)"] || 
+                                      timeSeriesData["Time Series (Monthly)"];
+                    
+                    if (timeSeries) {
+                        const dates = [];
+                        const prices = [];
+                        const volumes = [];
+                        
+                        // Sort dates in ascending order
+                        const sortedDates = Object.keys(timeSeries).sort();
+                        
+                        // Get data for each date
+                        sortedDates.forEach(date => {
+                            const data = timeSeries[date];
+                            dates.push(date.split(' ')[0]); // Just get the date part
+                            prices.push(parseFloat(data["4. close"]));
+                            volumes.push(parseInt(data["5. volume"]));
+                        });
+                        
+                        // Create charts
+                        createPriceChart(dates, prices);
+                        createVolumeChart(dates, volumes);
+                    }
+                }
+                
+                // Show the stock data container
+                stockDataContainer.classList.remove('d-none');
+            }
+            
+            // Fetch stock data from Alpha Vantage API
+            function fetchStockData(symbol, period) {
+                // If no API key, show message
+                if (!apiKey) {
+                    errorMessage.textContent = 'Please enter an Alpha Vantage API key';
+                    errorAlert.classList.remove('d-none');
+                    return;
+                }
+                
+                // Show loading spinner, hide error and data container
+                loadingSpinner.classList.remove('d-none');
+                errorAlert.classList.add('d-none');
+                stockDataContainer.classList.add('d-none');
+                
+                // Map our period values to Alpha Vantage functions and parameters
+                const periodMap = {
+                    '1d': {function: 'TIME_SERIES_INTRADAY', interval: '60min', outputsize: 'full'},
+                    '5d': {function: 'TIME_SERIES_INTRADAY', interval: '60min', outputsize: 'full'},
+                    '1mo': {function: 'TIME_SERIES_DAILY', outputsize: 'compact'},
+                    '3mo': {function: 'TIME_SERIES_DAILY', outputsize: 'full'},
+                    '6mo': {function: 'TIME_SERIES_DAILY', outputsize: 'full'},
+                    '1y': {function: 'TIME_SERIES_WEEKLY'},
+                    '2y': {function: 'TIME_SERIES_WEEKLY'},
+                    '5y': {function: 'TIME_SERIES_MONTHLY'},
+                    'max': {function: 'TIME_SERIES_MONTHLY'}
+                };
+                
+                const periodSettings = periodMap[period];
+                
+                // First get the quote data
+                const quoteUrl = `https://www.alphavantage.co/query?function=GLOBAL_QUOTE&symbol=${symbol}&apikey=${apiKey}`;
+                
+                // Then get the time series data
+                let timeSeriesUrl = `https://www.alphavantage.co/query?function=${periodSettings.function}&symbol=${symbol}&apikey=${apiKey}`;
+                
+                // Add interval parameter for intraday data
+                if (periodSettings.interval) {
+                    timeSeriesUrl += `&interval=${periodSettings.interval}`;
+                }
+                
+                // Add outputsize parameter if specified
+                if (periodSettings.outputsize) {
+                    timeSeriesUrl += `&outputsize=${periodSettings.outputsize}`;
+                }
+                
+                // Fetch both quote and time series data
+                Promise.all([
+                    fetch(quoteUrl).then(response => response.json()),
+                    fetch(timeSeriesUrl).then(response => response.json())
+                ])
+                .then(([quoteData, timeSeriesData]) => {
+                    // Check for errors
+                    if (quoteData.Note || timeSeriesData.Note) {
+                        throw new Error('API rate limit exceeded. Please try again later or get a premium API key.');
+                    }
+                    
+                    if (quoteData["Error Message"] || timeSeriesData["Error Message"]) {
+                        throw new Error('Invalid API key or symbol. Please check and try again.');
+                    }
+                    
+                    if (!quoteData["Global Quote"] || 
+                       (!timeSeriesData["Time Series (Daily)"] && 
+                        !timeSeriesData["Time Series (60min)"] && 
+                        !timeSeriesData["Time Series (Weekly)"] && 
+                        !timeSeriesData["Time Series (Monthly)"])) {
+                        throw new Error('No data found for symbol: ' + symbol);
+                    }
+                    
+                    // Update the current symbol and period for auto-refresh
+                    currentSymbol = symbol;
+                    currentPeriod = period;
+                    
+                    // Get company overview for more information
+                    fetch(`https://www.alphavantage.co/query?function=OVERVIEW&symbol=${symbol}&apikey=${apiKey}`)
+                        .then(response => response.json())
+                        .then(overviewData => {
+                            // Update stock data with overview information
+                            if (overviewData.Name) {
+                                document.getElementById('stock-name').textContent = `${overviewData.Name} (${symbol})`;
+                                document.getElementById('stock-exchange').textContent = overviewData.Exchange || "Market";
+                                
+                                // Update additional metrics
+                                document.getElementById('market-cap').textContent = formatMarketCap(parseFloat(overviewData.MarketCapitalization) || 0);
+                                document.getElementById('pe-ratio').textContent = overviewData.PERatio || "N/A";
+                                document.getElementById('eps').textContent = formatCurrency(parseFloat(overviewData.EPS) || 0);
+                                document.getElementById('dividend-yield').textContent = overviewData.DividendYield ? (parseFloat(overviewData.DividendYield) * 100).toFixed(2) + '%' : "N/A";
+                                document.getElementById('52-week-range').textContent = `${formatCurrency(parseFloat(overviewData["52WeekLow"]) || 0)} - ${formatCurrency(parseFloat(overviewData["52WeekHigh"]) || 0)}`;
+                            }
+                        })
+                        .catch(error => {
+                            console.warn('Error fetching company overview:', error);
+                            // This error is not critical, so we don't show it to the user
+                        });
+                    
+                    // Update the UI with the stock and chart data
+                    updateStockData(quoteData, timeSeriesData);
+                })
+                .catch(error => {
+                    console.error('Error fetching stock data:', error);
+                    errorMessage.textContent = error.message || 'An error occurred while fetching stock data';
+                    errorAlert.classList.remove('d-none');
+                    stockDataContainer.classList.add('d-none');
+                })
+                .finally(() => {
+                    loadingSpinner.classList.add('d-none');
+                });
+            }
+            
+            // Handle form submission
+            stockSearchForm.addEventListener('submit', function(e) {
+                e.preventDefault();
+                
+                const symbol = stockSymbolInput.value.trim().toUpperCase();
+                const period = timePeriodSelect.value;
+                
+                if (symbol) {
+                    fetchStockData(symbol, period);
+                }
+            });
+            
+            // Handle auto-refresh toggle
+            autoRefreshToggle.addEventListener('change', function() {
+                if (this.checked) {
+                    // Start auto-refresh
+                    refreshInterval = setInterval(() => {
+                        if (currentSymbol) {
+                            fetchStockData(currentSymbol, currentPeriod);
+                        }
+                    }, REFRESH_INTERVAL_SECONDS * 1000);
+                } else {
+                    // Stop auto-refresh
+                    clearInterval(refreshInterval);
+                    refreshInterval = null;
+                }
+            });
+            
+            // Handle time period change
+            timePeriodSelect.addEventListener('change', function() {
+                if (currentSymbol) {
+                    fetchStockData(currentSymbol, this.value);
+                }
+            });
+            
+            // Show initial demo data or fetch if API key exists
+            if (apiKey) {
+                fetchStockData(currentSymbol, currentPeriod);
+            } else {
+                // Show a welcome message
+                const welcomeAlert = document.createElement('div');
+                welcomeAlert.className = 'alert alert-info';
+                welcomeAlert.innerHTML = `
+                    <i class="fas fa-info-circle me-2"></i>
+                    <strong>Welcome to Stock Market Dashboard!</strong> 
+                    To get started, please enter your Alpha Vantage API key above. 
+                    You can get a free API key at <a href="https://www.alphavantage.co/support/#api-key" target="_blank">Alpha Vantage</a>.
+                `;
+                
+                document.querySelector('.container').insertBefore(welcomeAlert, loadingSpinner);
+            }
+        });
+    </script>
+</body>
+</html>
