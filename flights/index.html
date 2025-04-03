@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LOT Recent Flights</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+            background-color: #f5f5f5;
+            color: #333;
+        }
+        
+        .container {
+            text-align: center;
+        }
+        
+        h1 {
+            font-size: 2.5rem;
+            margin-bottom: 2rem;
+        }
+        
+        .button {
+            display: inline-block;
+            padding: 12px 24px;
+            margin: 10px;
+            font-size: 1rem;
+            font-weight: bold;
+            text-decoration: none;
+            color: white;
+            background-color: #0066cc;
+            border-radius: 4px;
+            transition: background-color 0.3s;
+            cursor: pointer;
+            border: none;
+        }
+        
+        .button:hover {
+            background-color: #0052a3;
+        }
+        
+        .download-button {
+            background-color: #4CAF50;
+        }
+        
+        .download-button:hover {
+            background-color: #3e8e41;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>LOT Recent Flights</h1>
+        <button class="button" id="visitSite">Visit Site</button>
+        <br>
+        <button class="button download-button" id="downloadApp">Download Android App</button>
+    </div>
+
+    <script>
+        document.getElementById('visitSite').addEventListener('click', function() {
+            window.location.href = 'https://matizdev.github.io/flights/LOT/';
+        });
+        
+        document.getElementById('downloadApp').addEventListener('click', function() {
+            // Create a temporary anchor element to trigger the download
+            const link = document.createElement('a');
+            link.href = 'LOTAirlinesFlights.apk';
+            link.download = 'LOTAirlinesFlights.apk';
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        });
+    </script>
+</body>
+</html>
