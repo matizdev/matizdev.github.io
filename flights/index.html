@@ -14,6 +14,7 @@
             --replit-green-hover: #236e4a;
             --replit-text: #f2f2f2;
             --replit-text-secondary: #b3b3b3;
+            --replit-link: #8a9cff;
         }
         
         body {
@@ -112,6 +113,21 @@
             border: 2px solid var(--replit-blue);
         }
         
+        .watch-link {
+            display: block;
+            margin-top: -0.5rem;
+            margin-bottom: 1rem;
+            font-size: 0.85rem;
+            color: var(--replit-text-secondary);
+            text-decoration: none;
+            transition: color 0.2s ease;
+        }
+        
+        .watch-link:hover {
+            color: var(--replit-link);
+            text-decoration: underline;
+        }
+        
         @media (max-width: 600px) {
             .container {
                 padding: 1.5rem;
@@ -133,6 +149,7 @@
         <div class="button-container">
             <button class="button" id="visitSite">Visit Site</button>
             <button class="button download-button" id="downloadApp">Download Android App</button>
+            <a href="LOTAirlinesFlightsWatch.apk" class="watch-link" id="downloadWatch">Download for Pixel Watch</a>
         </div>
     </div>
 
@@ -149,9 +166,17 @@
             document.body.appendChild(link);
             link.click();
             document.body.removeChild(link);
-            
-            // Optional: Add download analytics or confirmation
-            console.log('Download initiated');
+        });
+        
+        document.getElementById('downloadWatch').addEventListener('click', function(e) {
+            e.preventDefault();
+            // Create a temporary anchor element to trigger the download
+            const link = document.createElement('a');
+            link.href = 'LOTAirlinesFlightsWatch.apk';
+            link.download = 'LOTAirlinesFlightsWatch.apk';
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
         });
     </script>
 </body>
