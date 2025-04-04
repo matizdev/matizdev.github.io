@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NASA Astronomy Picture of the Day</title>
+    <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1><i class="fas fa-star"></i> NASA Astronomy Picture of the Day</h1>
+            <div class="date-controls">
+                <button id="prev-day"><i class="fas fa-arrow-left"></i> Previous</button>
+                <input type="date" id="date-picker">
+                <button id="next-day">Next <i class="fas fa-arrow-right"></i></button>
+                <button id="today">Today</button>
+            </div>
+        </header>
+
+        <main>
+            <div class="loading" id="loading">
+                <div class="spinner"></div>
+                <p>Loading cosmic wonders...</p>
+            </div>
+            
+            <div class="apod-container" id="apod-container">
+                <h2 id="apod-title"></h2>
+                <div class="media-container" id="media-container"></div>
+                <p id="apod-date"></p>
+                <p id="apod-explanation"></p>
+                <div class="actions">
+                    <button id="fullscreen-btn"><i class="fas fa-expand"></i> Fullscreen</button>
+                    <button id="save-btn"><i class="fas fa-save"></i> Save</button>
+                </div>
+            </div>
+
+            <div class="error" id="error"></div>
+        </main>
+
+        <footer>
+            <p>Data provided by NASA's APOD API</p>
+            <p>Made with <i class="fas fa-heart"></i> by space enthusiasts</p>
+        </footer>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>
