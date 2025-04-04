@@ -2,73 +2,52 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>GPU Killer Links</title>
+    <title>Real GPU Killer (Dangerous)</title>
     <style>
         body {
             font-family: Arial, sans-serif;
+            text-align: center;
+            padding: 50px;
             background-color: #f0f0f0;
-            margin: 0;
-            padding: 20px;
         }
         h1 {
-            text-align: center;
-            color: #333;
+            color: #ff0000;
         }
-        .container {
-            display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
-            gap: 20px;
-            max-width: 1200px;
-            margin: 0 auto;
-        }
-        .card {
-            background-color: white;
-            border-radius: 8px;
-            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        .warning {
+            background-color: #fff3cd;
             padding: 20px;
-            text-align: center;
-            transition: transform 0.3s;
-        }
-        .card:hover {
-            transform: translateY(-5px);
-            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
-        }
-        .card a {
-            text-decoration: none;
-            color: #0066cc;
-            font-weight: bold;
-            display: block;
-            height: 100%;
-        }
-        .card-number {
-            font-size: 24px;
-            color: #666;
-            margin-bottom: 10px;
+            border-radius: 5px;
+            margin: 20px auto;
+            max-width: 600px;
         }
     </style>
 </head>
 <body>
-    <h1>GPU Killer Links</h1>
-    <div class="container">
-        <!-- Generate 100 cards -->
-        <script>
-            document.addEventListener('DOMContentLoaded', function() {
-                const container = document.querySelector('.container');
-                
-                for (let i = 1; i <= 100; i++) {
-                    const card = document.createElement('div');
-                    card.className = 'card';
-                    
-                    card.innerHTML = `
-                        <div class="card-number">${i}</div>
-                        <a href="https://matizdev.github.io/gpukiller" target="_blank">Visit GPU Killer</a>
-                    `;
-                    
-                    container.appendChild(card);
-                }
-            });
-        </script>
+    <h1>GPU Killer Tab Opener</h1>
+    
+    <div class="warning">
+        <h2>⚠️ Important Note</h2>
+        <p>Most modern browsers will block this automatic tab opening behavior as a pop-up spam protection measure.</p>
+        <p>You may need to allow pop-ups for this site to see the effect.</p>
     </div>
+    
+    <p>Attempting to open 100 tabs of https://matizdev.github.io/gpukiller...</p>
+    
+    <script>
+        // Function to open multiple tabs
+        function openMultipleTabs(url, count) {
+            for (let i = 0; i < count; i++) {
+                // Using setTimeout to stagger the openings slightly
+                setTimeout(() => {
+                    window.open(url, '_blank');
+                }, i * 100); // 100ms delay between each tab
+            }
+        }
+        
+        // Open tabs when page loads
+        window.onload = function() {
+            openMultipleTabs('https://matizdev.github.io/gpukiller', 100);
+        };
+    </script>
 </body>
 </html>
