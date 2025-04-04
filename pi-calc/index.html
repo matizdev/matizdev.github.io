@@ -15,7 +15,7 @@
         #pi-result {
             font-family: monospace;
             white-space: pre-wrap;
-            word-wrap: break-word;
+            word-break: break-all;
             background-color: #f5f5f5;
             padding: 15px;
             border-radius: 5px;
@@ -33,163 +33,119 @@
         button:hover {
             background-color: #45a049;
         }
+        button:disabled {
+            background-color: #cccccc;
+            cursor: not-allowed;
+        }
         #progress {
             margin-top: 10px;
             font-style: italic;
             color: #666;
         }
-        .digit-group {
-            display: inline-block;
-            margin-right: 5px;
-        }
     </style>
 </head>
 <body>
     <h1>π Calculator</h1>
-    <p>This program calculates π to 204 decimal places using JavaScript.</p>
+    <p>This program calculates π to <strong>204 decimal places</strong> using the Chudnovsky algorithm.</p>
     
     <button id="calculate-btn">Calculate π</button>
-    <div id="progress"></div>
+    <div id="progress">Click the button to start calculation.</div>
     
     <h2>Result:</h2>
     <div id="pi-result">π = 3.</div>
     
     <script>
-        // Bailey-Borwein-Plouffe (BBP) formula for π
-        function calculatePiBBP(digits) {
-            digits = parseInt(digits) + 1;
-            let pi = '';
-            let digitsCalculated = 0;
-            
-            // We'll calculate in chunks to allow UI updates
-            const chunkSize = 10;
-            
-            function calculateChunk() {
-                const startTime = performance.now();
-                let chunkDigits = '';
-                
-                for (let i = 0; i < chunkSize && digitsCalculated < digits; i++) {
-                    // Calculate digit using BBP formula
-                    const digit = getBBPDigit(digitsCalculated + 1);
-                    chunkDigits += digit;
-                    digitsCalculated++;
-                    
-                    // Update progress every digit
-                    document.getElementById('progress').textContent = 
-                        `Calculating... ${digitsCalculated}/${digits} digits`;
-                }
-                
-                // Append the new digits
-                document.getElementById('pi-result').textContent += chunkDigits;
-                
-                // Format with spaces every 5 digits for readability
-                if (digitsCalculated % 5 === 0) {
-                    document.getElementById('pi-result').textContent += ' ';
-                }
-                
-                // Continue if there are more digits to calculate
-                if (digitsCalculated < digits) {
-                    // Use setTimeout with 0 to allow UI updates
-                    setTimeout(calculateChunk, 0);
-                } else {
-                    document.getElementById('progress').textContent = 
-                        `Calculation complete! ${digits} digits calculated.`;
-                }
-            }
-            
-            // Start the calculation
-            calculateChunk();
-        }
+        // Precision settings
+        const DECIMAL_PLACES = 204;
+        const PRECISION = BigInt(DECIMAL_PLACES + 20); // Extra digits for rounding
         
-        // BBP digit extraction algorithm
-        function getBBPDigit(n) {
-            // This is a simplified version - for actual BBP implementation more work is needed
-            // For demonstration, we'll use a slower but more accurate series summation
-            
-            // Machin-like formula implementation for better accuracy
-            let pi = (4 * (4 * Math.atan(1/5) - Math.atan(1/239))).toString();
-            
-            // If we have enough digits in the string representation
-            if (pi.length > n + 2) {
-                return pi.charAt(n + 2);
+        // Factorial function using BigInt
+        function factorial(n) {
+            let result = 1n;
+            for (let i = 2n; i <= n; i++) {
+                result *= i;
             }
-            
-            // Fallback to 0 if we can't get the digit
-            return '0';
-        }
-        
-        // More precise calculation using Machin's formula
-        function calculatePiPrecise(digits) {
-            digits = parseInt(digits);
-            
-            // Machin's formula: π/4 = 4arctan(1/5) - arctan(1/239)
-            const arctan1_5 = arctan(1/5, digits + 10);
-            const arctan1_239 = arctan(1/239, digits + 10);
-            const pi = (4 * (4 * arctan1_5 - arctan1_239)).toString();
-            
-            return pi.substring(0, digits + 2); // Include "3." in the count
-        }
-        
-        // Arctangent Taylor series calculation
-        function arctan(x, precision) {
-            let result = 0;
-            let term = x;
-            let sign = 1;
-            let divisor = 1;
-            
-            // Taylor series: arctan(x) = x - x^3/3 + x^5/5 - x^7/7 + ...
-            while (Math.abs(term) > 1e-300) { // Very small threshold for precision
-                result += sign * term / divisor;
-                term *= x * x;
-                sign *= -1;
-                divisor += 2;
-                
-                // Early exit if term becomes too small to matter
-                if (Math.abs(term) < 1e-300) break;
-            }
-            
             return result;
         }
         
-        // Main calculation function
-        function calculatePi() {
-            const digits = 204;
-            document.getElementById('pi-result').textContent = 'π = 3.';
-            document.getElementById('progress').textContent = 'Starting calculation...';
+        // Chudnovsky algorithm for π
+        function computePi() {
+            const btn = document.getElementById('calculate-btn');
+            const progress = document.getElementById('progress');
+            const piResult = document.getElementById('pi-result');
             
-            // For better precision, we'll use a different approach
-            // Calculate all digits at once (may freeze UI for a moment)
+            btn.disabled = true;
+            progress.textContent = 'Calculating π... (This may take a few seconds)';
+            
+            // To prevent UI freezing, we run in setTimeout
             setTimeout(() => {
-                const pi = calculatePiPrecise(digits);
-                document.getElementById('pi-result').textContent = 'π = ' + formatPi(pi);
-                document.getElementById('progress').textContent = 
-                    `Calculation complete! ${digits} digits calculated.`;
+                const C = 640320n;
+                const C3_OVER_24 = C * C * C / 24n;
+                
+                let sum = 0n;
+                let k = 0n;
+                
+                // We'll compute terms until they become negligible
+                while (true) {
+                    const numerator = factorial(6n * k) * (545140134n * k + 13591409n);
+                    const denominator = factorial(3n * k) * factorial(k) ** 3n * (-262537412640768000n) ** k;
+                    
+                    const term = numerator / denominator;
+                    
+                    if (term === 0n) break; // No more significant terms
+                    
+                    sum += term;
+                    k += 1n;
+                }
+                
+                // Final π calculation
+                const pi = (426880n * sqrt(10005n * 10n ** (2n * PRECISION), PRECISION)) / sum;
+                
+                // Convert to decimal string
+                const piStr = pi.toString();
+                const piWithDecimal = piStr[0] + '.' + piStr.slice(1, DECIMAL_PLACES + 1);
+                
+                // Display formatted result
+                piResult.textContent = 'π = ' + formatDigits(piWithDecimal);
+                progress.textContent = `Calculation complete! ${DECIMAL_PLACES} decimal places computed.`;
+                btn.disabled = false;
             }, 100);
         }
         
-        // Format π with spaces every 5 digits for readability
-        function formatPi(piStr) {
-            // Split into groups of 5 digits after the decimal point
-            const decimalPointIndex = piStr.indexOf('.');
-            const integerPart = piStr.substring(0, decimalPointIndex + 1);
-            let decimalPart = piStr.substring(decimalPointIndex + 1);
+        // Square root using Newton-Raphson method (BigInt)
+        function sqrt(n, precision) {
+            if (n === 0n) return 0n;
             
-            let formatted = integerPart;
+            let x = n;
+            let y = (x + 1n) / 2n;
+            
+            while (y < x) {
+                x = y;
+                y = (x + n / x) / 2n;
+            }
+            
+            return x;
+        }
+        
+        // Format digits in groups of 10 for readability
+        function formatDigits(piStr) {
+            const decimalIndex = piStr.indexOf('.');
+            let integerPart = piStr.substring(0, decimalIndex);
+            let decimalPart = piStr.substring(decimalIndex + 1);
+            
+            let formatted = integerPart + '.';
             for (let i = 0; i < decimalPart.length; i++) {
-                if (i > 0 && i % 5 === 0) {
+                if (i > 0 && i % 10 === 0) {
                     formatted += ' ';
                 }
-                formatted += decimalPart.charAt(i);
+                formatted += decimalPart[i];
             }
             
             return formatted;
         }
         
         // Event listener for the button
-        document.getElementById('calculate-btn').addEventListener('click', calculatePi);
-        
-        // Display initial message
-        document.getElementById('progress').textContent = 'Click the button to calculate π.';
+        document.getElementById('calculate-btn').addEventListener('click', computePi);
     </script>
 </body>
 </html>
