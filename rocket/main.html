@@ -1,0 +1,333 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Axiom Mission 4 - Simulation</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            background-color: #000;
+            color: white;
+            font-family: Arial, sans-serif;
+            overflow: hidden;
+        }
+        
+        #rocket-container {
+            position: relative;
+            width: 100%;
+            height: 100vh;
+            display: flex;
+            justify-content: center;
+        }
+        
+        #rocket {
+            position: absolute;
+            bottom: 0;
+            width: 100px;
+            height: 300px;
+            background: linear-gradient(to right, #333, #555, #333);
+            border-radius: 10px 10px 0 0;
+            transform-origin: bottom center;
+            transition: transform 0.1s;
+        }
+        
+        #flame {
+            position: absolute;
+            bottom: -150px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 60px;
+            height: 150px;
+            background: linear-gradient(to top, orange, yellow, transparent);
+            border-radius: 0 0 30px 30px;
+            filter: blur(5px);
+            opacity: 0;
+        }
+        
+        #stars {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: -1;
+        }
+        
+        .star {
+            position: absolute;
+            background-color: white;
+            border-radius: 50%;
+        }
+        
+        #ground {
+            position: absolute;
+            bottom: 0;
+            width: 100%;
+            height: 20px;
+            background-color: #333;
+            z-index: -1;
+        }
+        
+        #smoke {
+            position: absolute;
+            bottom: 0;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 200px;
+            height: 0;
+            background: radial-gradient(circle, rgba(255,255,255,0.8) 0%, rgba(200,200,200,0.5) 50%, transparent 100%);
+            border-radius: 50%;
+            opacity: 0;
+        }
+        
+        #info-panel {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            background-color: rgba(0, 0, 0, 0.7);
+            padding: 15px;
+            border-radius: 10px;
+            border: 1px solid #444;
+            max-width: 300px;
+        }
+        
+        #countdown {
+            font-size: 24px;
+            font-weight: bold;
+            color: #ff5555;
+            text-align: center;
+            margin-bottom: 10px;
+        }
+        
+        #launch-button {
+            display: block;
+            margin: 20px auto;
+            padding: 10px 20px;
+            background-color: #ff3333;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            font-size: 18px;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+        
+        #launch-button:hover {
+            background-color: #ff5555;
+        }
+        
+        #mission-patch {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            width: 100px;
+            height: 100px;
+            background-color: rgba(0, 0, 0, 0.7);
+            border-radius: 50%;
+            border: 2px solid #555;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            overflow: hidden;
+        }
+        
+        #polish-flag {
+            position: absolute;
+            top: 50px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 60px;
+            height: 40px;
+            background: linear-gradient(to bottom, white 50%, red 50%);
+            opacity: 0;
+            z-index: 10;
+        }
+        
+        #earth {
+            position: absolute;
+            bottom: -500px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 800px;
+            height: 800px;
+            background: radial-gradient(circle at 30% 40%, #1a66ff, #0033cc, #001a66);
+            border-radius: 50%;
+            opacity: 0;
+            z-index: -2;
+        }
+        
+        .cloud {
+            position: absolute;
+            background-color: rgba(255, 255, 255, 0.8);
+            border-radius: 50%;
+            opacity: 0;
+        }
+    </style>
+</head>
+<body>
+    <div id="rocket-container">
+        <div id="stars"></div>
+        <div id="earth"></div>
+        <div id="rocket">
+            <div id="flame"></div>
+        </div>
+        <div id="smoke"></div>
+        <div id="polish-flag"></div>
+        <div id="ground"></div>
+        
+        <div id="info-panel">
+            <h2>Axiom Mission 4</h2>
+            <p>Pierwszy Polak na Międzynarodowej Stacji Kosmicznej od czasów Mirosława Hermaszewskiego.</p>
+            <p>Astronauta: <strong>Sławosz Uznański-Wiśniewski</strong></p>
+            <p>Data startu: <span id="launch-date">2025</span></p>
+            <div id="countdown">10</div>
+            <button id="launch-button">Rozpocznij odliczanie</button>
+        </div>
+        
+        <div id="mission-patch">
+            <svg viewBox="0 0 100 100">
+                <circle cx="50" cy="50" r="45" fill="none" stroke="#555" stroke-width="2"/>
+                <text x="50" y="30" text-anchor="middle" fill="white" font-size="8">AXIOM</text>
+                <text x="50" y="45" text-anchor="middle" fill="white" font-size="8">MISSION 4</text>
+                <text x="50" y="60" text-anchor="middle" fill="white" font-size="6">POLAND</text>
+                <text x="50" y="75" text-anchor="middle" fill="white" font-size="8">UZNAŃSKI</text>
+            </svg>
+        </div>
+    </div>
+
+    <script>
+        // Create stars
+        const starsContainer = document.getElementById('stars');
+        for (let i = 0; i < 200; i++) {
+            const star = document.createElement('div');
+            star.className = 'star';
+            const size = Math.random() * 2;
+            star.style.width = `${size}px`;
+            star.style.height = `${size}px`;
+            star.style.left = `${Math.random() * 100}%`;
+            star.style.top = `${Math.random() * 100}%`;
+            star.style.opacity = Math.random();
+            starsContainer.appendChild(star);
+        }
+        
+        // Create clouds
+        for (let i = 0; i < 5; i++) {
+            const cloud = document.createElement('div');
+            cloud.className = 'cloud';
+            const size = 50 + Math.random() * 100;
+            cloud.style.width = `${size}px`;
+            cloud.style.height = `${size/2}px`;
+            cloud.style.left = `${Math.random() * 100}%`;
+            cloud.style.bottom = '20px';
+            cloud.style.opacity = '0.3';
+            document.body.appendChild(cloud);
+        }
+        
+        // Launch animation
+        const rocket = document.getElementById('rocket');
+        const flame = document.getElementById('flame');
+        const smoke = document.getElementById('smoke');
+        const countdownElement = document.getElementById('countdown');
+        const launchButton = document.getElementById('launch-button');
+        const polishFlag = document.getElementById('polish-flag');
+        const earth = document.getElementById('earth');
+        const clouds = document.querySelectorAll('.cloud');
+        
+        let countdown = 10;
+        let isLaunching = false;
+        
+        launchButton.addEventListener('click', () => {
+            if (isLaunching) return;
+            isLaunching = true;
+            launchButton.disabled = true;
+            
+            // Start countdown
+            const countdownInterval = setInterval(() => {
+                countdown--;
+                countdownElement.textContent = countdown;
+                
+                if (countdown <= 0) {
+                    clearInterval(countdownInterval);
+                    startLaunch();
+                }
+            }, 1000);
+        });
+        
+        function startLaunch() {
+            // Show flame and smoke
+            flame.style.opacity = '1';
+            smoke.style.opacity = '0.8';
+            smoke.style.height = '200px';
+            
+            // Shake rocket
+            let shakeInterval = setInterval(() => {
+                const shake = Math.random() * 2 - 1;
+                rocket.style.transform = `translateX(${shake}px)`;
+            }, 50);
+            
+            // Lift off after delay
+            setTimeout(() => {
+                clearInterval(shakeInterval);
+                
+                // Animate rocket ascent
+                let position = 0;
+                let velocity = 0.5;
+                let acceleration = 0.02;
+                
+                // Show Polish flag
+                polishFlag.style.opacity = '1';
+                
+                // Show clouds
+                clouds.forEach(cloud => {
+                    cloud.style.opacity = '0.3';
+                });
+                
+                const launchInterval = setInterval(() => {
+                    velocity += acceleration;
+                    position += velocity;
+                    
+                    // Move rocket up
+                    rocket.style.bottom = `${position}px`;
+                    flame.style.bottom = `${-150 - position}px`;
+                    smoke.style.height = `${200 - position/2}px`;
+                    
+                    // Rotate rocket slightly during ascent
+                    if (position < 200) {
+                        const rotate = Math.sin(position/50) * 2;
+                        rocket.style.transform = `rotate(${rotate}deg)`;
+                    }
+                    
+                    // Show Earth when high enough
+                    if (position > 300) {
+                        earth.style.opacity = '0.8';
+                    }
+                    
+                    // Make stars move (parallax effect)
+                    const stars = document.querySelectorAll('.star');
+                    stars.forEach(star => {
+                        const speed = parseFloat(star.style.width) * 0.1;
+                        let top = parseFloat(star.style.top);
+                        top -= speed;
+                        if (top < -5) top = 105;
+                        star.style.top = `${top}%`;
+                    });
+                    
+                    // End animation when rocket leaves view
+                    if (position > window.innerHeight + 300) {
+                        clearInterval(launchInterval);
+                        countdownElement.textContent = "MISJA UDANA!";
+                        setTimeout(() => {
+                            location.reload(); // Reset for another launch
+                        }, 5000);
+                    }
+                }, 20);
+            }, 1000);
+        }
+        
+        // Set current year
+        document.getElementById('launch-date').textContent = new Date().getFullYear();
+    </script>
+</body>
+</html>
