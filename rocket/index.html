@@ -1,0 +1,576 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Axiom Mission 4 - Pełna symulacja lotu do ISS</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+            font-family: Arial, sans-serif;
+        }
+        
+        #info-panel {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            background-color: rgba(0, 0, 0, 0.7);
+            color: white;
+            padding: 15px;
+            border-radius: 10px;
+            border: 1px solid #444;
+            max-width: 300px;
+            z-index: 100;
+        }
+        
+        #timer {
+            font-size: 24px;
+            font-weight: bold;
+            color: #4CAF50;
+        }
+        
+        #mission-phase {
+            font-size: 18px;
+            margin: 10px 0;
+            color: #FFC107;
+        }
+        
+        #controls {
+            position: absolute;
+            bottom: 20px;
+            left: 20px;
+            z-index: 100;
+        }
+        
+        button {
+            padding: 10px 15px;
+            margin-right: 10px;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+        
+        button:hover {
+            background-color: #45a049;
+        }
+        
+        #speed-control {
+            margin-top: 10px;
+            color: white;
+        }
+        
+        #loading-screen {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: black;
+            color: white;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+        
+        #progress-bar {
+            width: 300px;
+            height: 20px;
+            border: 1px solid white;
+            margin-top: 20px;
+        }
+        
+        #progress {
+            height: 100%;
+            width: 0%;
+            background-color: #4CAF50;
+        }
+    </style>
+</head>
+<body>
+    <div id="info-panel">
+        <h2>Axiom Mission 4</h2>
+        <p>Astronauta: <strong>Sławosz Uznański-Wiśniewski</strong></p>
+        <p>Czas misji: <span id="timer">00:00:00</span></p>
+        <p>Faza misji: <span id="mission-phase">Przygotowanie do startu</span></p>
+    </div>
+    
+    <div id="controls">
+        <button id="start-btn">Rozpocznij misję</button>
+        <button id="pause-btn" disabled>Pauza</button>
+        <div id="speed-control">
+            Prędkość symulacji: 
+            <input type="range" id="speed-slider" min="1" max="100" value="1">
+            <span id="speed-value">1x</span>
+        </div>
+    </div>
+    
+    <div id="loading-screen">
+        <h2>Ładowanie symulacji 3D...</h2>
+        <div id="progress-bar">
+            <div id="progress"></div>
+        </div>
+    </div>
+    
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.min.js"></script>
+    <script>
+        // Variables
+        let scene, camera, renderer, rocket, earth, iss;
+        let startTime, missionTime = 0;
+        let animationId, lastTimestamp;
+        let simulationSpeed = 1;
+        let isPaused = true;
+        let missionPhase = 'prelaunch';
+        let rocketPosition = { x: 0, y: -1, z: 0 };
+        let rocketVelocity = { x: 0, y: 0, z: 0 };
+        let rocketRotation = { x: 0, y: 0, z: 0 };
+        let boosterSeparationTime = 120; // 2 minutes
+        let secondStageSeparationTime = 540; // 9 minutes
+        let orbitInsertionTime = 1800; // 30 minutes
+        let approachTime = 3600; // 1 hour
+        let dockingTime = 108000; // 30 hours (full mission)
+        
+        // DOM elements
+        const timerElement = document.getElementById('timer');
+        const missionPhaseElement = document.getElementById('mission-phase');
+        const startButton = document.getElementById('start-btn');
+        const pauseButton = document.getElementById('pause-btn');
+        const speedSlider = document.getElementById('speed-slider');
+        const speedValue = document.getElementById('speed-value');
+        const loadingScreen = document.getElementById('loading-screen');
+        const progressBar = document.getElementById('progress');
+        
+        // Initialize the scene
+        function init() {
+            // Create scene
+            scene = new THREE.Scene();
+            
+            // Create camera
+            camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+            camera.position.set(0, 0, 5);
+            
+            // Create renderer
+            renderer = new THREE.WebGLRenderer({ antialias: true });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.setClearColor(0x000000);
+            document.body.appendChild(renderer.domElement);
+            
+            // Add controls
+            const controls = new THREE.OrbitControls(camera, renderer.domElement);
+            controls.enableDamping = true;
+            controls.dampingFactor = 0.25;
+            
+            // Add lights
+            const ambientLight = new THREE.AmbientLight(0x404040);
+            scene.add(ambientLight);
+            
+            const directionalLight = new THREE.DirectionalLight(0xffffff, 1);
+            directionalLight.position.set(1, 1, 1);
+            scene.add(directionalLight);
+            
+            // Create stars
+            createStars();
+            
+            // Load models with progress tracking
+            loadModels();
+            
+            // Event listeners
+            window.addEventListener('resize', onWindowResize);
+            startButton.addEventListener('click', startMission);
+            pauseButton.addEventListener('click', togglePause);
+            speedSlider.addEventListener('input', updateSpeed);
+            
+            // Hide loading screen when everything is loaded
+            setTimeout(() => {
+                loadingScreen.style.display = 'none';
+            }, 3000);
+        }
+        
+        function createStars() {
+            const starsGeometry = new THREE.BufferGeometry();
+            const starsMaterial = new THREE.PointsMaterial({
+                color: 0xffffff,
+                size: 0.1,
+                transparent: true,
+                opacity: 0.8
+            });
+            
+            const starsVertices = [];
+            for (let i = 0; i < 10000; i++) {
+                const x = (Math.random() - 0.5) * 2000;
+                const y = (Math.random() - 0.5) * 2000;
+                const z = (Math.random() - 0.5) * 2000;
+                starsVertices.push(x, y, z);
+            }
+            
+            starsGeometry.setAttribute('position', new THREE.Float32BufferAttribute(starsVertices, 3));
+            const stars = new THREE.Points(starsGeometry, starsMaterial);
+            scene.add(stars);
+        }
+        
+        function loadModels() {
+            // Simple placeholder models for demonstration
+            // In a real application, you would load detailed 3D models
+            
+            // Earth
+            const earthGeometry = new THREE.SphereGeometry(2, 32, 32);
+            const earthTexture = new THREE.TextureLoader().load('https://threejs.org/examples/textures/planets/earth_atmos_2048.jpg');
+            const earthMaterial = new THREE.MeshPhongMaterial({
+                map: earthTexture,
+                specular: new THREE.Color(0x333333),
+                shininess: 5
+            });
+            earth = new THREE.Mesh(earthGeometry, earthMaterial);
+            earth.position.set(0, 0, 0);
+            scene.add(earth);
+            progressBar.style.width = '30%';
+            
+            // Rocket (simplified)
+            const rocketGroup = new THREE.Group();
+            
+            // Main stage
+            const mainStageGeometry = new THREE.CylinderGeometry(0.1, 0.15, 0.8, 32);
+            const mainStageMaterial = new THREE.MeshPhongMaterial({ color: 0xaaaaaa });
+            const mainStage = new THREE.Mesh(mainStageGeometry, mainStageMaterial);
+            mainStage.position.y = 0.4;
+            rocketGroup.add(mainStage);
+            
+            // Boosters
+            const boosterGeometry = new THREE.CylinderGeometry(0.05, 0.07, 0.7, 32);
+            const boosterMaterial = new THREE.MeshPhongMaterial({ color: 0x888888 });
+            
+            for (let i = 0; i < 4; i++) {
+                const angle = (i / 4) * Math.PI * 2;
+                const booster = new THREE.Mesh(boosterGeometry, boosterMaterial);
+                booster.position.x = Math.cos(angle) * 0.2;
+                booster.position.z = Math.sin(angle) * 0.2;
+                booster.position.y = 0.35;
+                booster.userData.isBooster = true;
+                rocketGroup.add(booster);
+            }
+            
+            // Capsule
+            const capsuleGeometry = new THREE.ConeGeometry(0.12, 0.3, 32);
+            const capsuleMaterial = new THREE.MeshPhongMaterial({ color: 0xffffff });
+            const capsule = new THREE.Mesh(capsuleGeometry, capsuleMaterial);
+            capsule.position.y = 0.8;
+            capsule.rotation.x = Math.PI;
+            rocketGroup.add(capsule);
+            
+            // Polish flag
+            const flagGeometry = new THREE.PlaneGeometry(0.15, 0.1);
+            const flagTexture = new THREE.TextureLoader().load('data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyMDAgMTAwIj48cmVjdCB3aWR0aD0iMjAwIiBoZWlnaHQ9IjEwMCIgZmlsbD0iI2ZmZiIvPjxyZWN0IHdpZHRoPSIyMDAiIGhlaWdodD0iNTAiIHk9IjUwIiBmaWxsPSIjZDgwMDAwIi8+PC9zdmc+');
+            const flagMaterial = new THREE.MeshBasicMaterial({
+                map: flagTexture,
+                transparent: true,
+                side: THREE.DoubleSide
+            });
+            const flag = new THREE.Mesh(flagGeometry, flagMaterial);
+            flag.position.set(0.15, 0.7, 0);
+            flag.rotation.y = Math.PI / 2;
+            rocketGroup.add(flag);
+            
+            rocketGroup.position.set(rocketPosition.x, rocketPosition.y, rocketPosition.z);
+            rocket = rocketGroup;
+            scene.add(rocket);
+            progressBar.style.width = '60%';
+            
+            // ISS (simplified)
+            const issGroup = new THREE.Group();
+            
+            // Main modules
+            const mainModuleGeometry = new THREE.BoxGeometry(0.5, 0.2, 0.2);
+            const mainModuleMaterial = new THREE.MeshPhongMaterial({ color: 0xcccccc });
+            const mainModule = new THREE.Mesh(mainModuleGeometry, mainModuleMaterial);
+            issGroup.add(mainModule);
+            
+            // Solar panels
+            const panelGeometry = new THREE.BoxGeometry(1, 0.01, 0.4);
+            const panelMaterial = new THREE.MeshPhongMaterial({ color: 0x333333 });
+            
+            const panel1 = new THREE.Mesh(panelGeometry, panelMaterial);
+            panel1.position.set(0, 0, 0.3);
+            issGroup.add(panel1);
+            
+            const panel2 = new THREE.Mesh(panelGeometry, panelMaterial);
+            panel2.position.set(0, 0, -0.3);
+            issGroup.add(panel2);
+            
+            issGroup.position.set(3, 3, 0);
+            issGroup.rotation.y = Math.PI / 4;
+            iss = issGroup;
+            scene.add(iss);
+            progressBar.style.width = '100%';
+        }
+        
+        function startMission() {
+            startTime = Date.now();
+            isPaused = false;
+            startButton.disabled = true;
+            pauseButton.disabled = false;
+            missionPhase = 'launch';
+            missionPhaseElement.textContent = 'Start rakiety';
+            lastTimestamp = performance.now();
+            animate();
+        }
+        
+        function togglePause() {
+            isPaused = !isPaused;
+            pauseButton.textContent = isPaused ? 'Wznów' : 'Pauza';
+            
+            if (!isPaused) {
+                lastTimestamp = performance.now();
+                animate();
+            }
+        }
+        
+        function updateSpeed() {
+            simulationSpeed = parseInt(speedSlider.value);
+            speedValue.textContent = simulationSpeed + 'x';
+        }
+        
+        function animate(timestamp = 0) {
+            if (isPaused) return;
+            
+            animationId = requestAnimationFrame(animate);
+            
+            // Calculate delta time
+            const deltaTime = (timestamp - lastTimestamp) / 1000; // in seconds
+            lastTimestamp = timestamp;
+            
+            if (deltaTime > 0.1) return; // Skip large time jumps
+            
+            // Update mission time
+            missionTime += deltaTime * simulationSpeed;
+            
+            // Update timer display
+            updateTimer();
+            
+            // Update rocket position and rotation based on mission phase
+            updateRocketPosition();
+            
+            // Check for mission phase changes
+            checkMissionPhases();
+            
+            // Rotate Earth
+            earth.rotation.y += 0.0005 * deltaTime * simulationSpeed;
+            
+            // Rotate ISS
+            iss.rotation.y += 0.001 * deltaTime * simulationSpeed;
+            
+            // Render scene
+            renderer.render(scene, camera);
+        }
+        
+        function updateTimer() {
+            const hours = Math.floor(missionTime / 3600);
+            const minutes = Math.floor((missionTime % 3600) / 60);
+            const seconds = Math.floor(missionTime % 60);
+            
+            timerElement.textContent = 
+                `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+        }
+        
+        function updateRocketPosition() {
+            if (missionPhase === 'launch') {
+                // Launch phase - rocket goes up quickly
+                rocketVelocity.y = 0.01;
+                rocketVelocity.x = 0.0005 * Math.sin(missionTime * 0.5);
+                
+                // Slight rotation during ascent
+                rocketRotation.x = Math.sin(missionTime * 0.3) * 0.05;
+                rocketRotation.z = Math.cos(missionTime * 0.2) * 0.03;
+            } 
+            else if (missionPhase === 'boosters_separated') {
+                // After booster separation - continue ascent
+                rocketVelocity.y = 0.008;
+                rocketVelocity.x = 0.0003 * Math.sin(missionTime * 0.4);
+                
+                // Stabilize rotation
+                rocketRotation.x *= 0.98;
+                rocketRotation.z *= 0.98;
+            }
+            else if (missionPhase === 'second_stage') {
+                // Second stage - prepare for orbit
+                rocketVelocity.y = 0.006;
+                rocketVelocity.x = 0.001 * Math.sin(missionTime * 0.3);
+                
+                // Start tilting for orbital insertion
+                if (missionTime > orbitInsertionTime - 300) {
+                    rocketRotation.z = -0.1 * (1 - (orbitInsertionTime - missionTime) / 300);
+                }
+            }
+            else if (missionPhase === 'orbit') {
+                // Circular orbit - move in a curved path
+                const orbitRadius = 2.5;
+                const orbitSpeed = 0.0003 * simulationSpeed;
+                
+                rocketPosition.x = orbitRadius * Math.sin(missionTime * orbitSpeed);
+                rocketPosition.z = orbitRadius * Math.cos(missionTime * orbitSpeed) - orbitRadius;
+                rocketPosition.y = 1.5 + 0.2 * Math.sin(missionTime * orbitSpeed * 2);
+                
+                // Point rocket in direction of motion
+                rocketRotation.y = Math.PI/2 + missionTime * orbitSpeed;
+                rocketRotation.x = 0.1 * Math.sin(missionTime * orbitSpeed * 3);
+                
+                // Move camera to follow rocket
+                camera.position.set(
+                    rocketPosition.x + 3 * Math.sin(missionTime * orbitSpeed + Math.PI/4),
+                    3,
+                    rocketPosition.z + 3 * Math.cos(missionTime * orbitSpeed + Math.PI/4)
+                );
+                camera.lookAt(rocketPosition.x, rocketPosition.y, rocketPosition.z);
+            }
+            else if (missionPhase === 'approach') {
+                // Approach ISS - move toward the station
+                const t = (missionTime - approachTime) / (dockingTime - approachTime);
+                const easeT = t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2;
+                
+                // Move rocket toward ISS
+                rocketPosition.x = 0 + (iss.position.x - 0) * easeT;
+                rocketPosition.y = 1.5 + (iss.position.y - 1.5) * easeT;
+                rocketPosition.z = -2.5 + (iss.position.z - -2.5) * easeT;
+                
+                // Rotate to match ISS orientation
+                rocketRotation.y = Math.PI/2 + (iss.rotation.y - Math.PI/2) * easeT;
+                
+                // Keep camera focused on rocket
+                camera.position.set(
+                    rocketPosition.x + 2,
+                    rocketPosition.y + 1,
+                    rocketPosition.z + 2
+                );
+                camera.lookAt(rocketPosition.x, rocketPosition.y, rocketPosition.z);
+            }
+            else if (missionPhase === 'docked') {
+                // Docked with ISS - rocket becomes part of the station
+                rocket.position.copy(iss.position);
+                rocket.rotation.copy(iss.rotation);
+                rocket.position.x += 0.3;
+                
+                // Rotate camera around the ISS
+                const angle = (missionTime - dockingTime) * 0.0005;
+                camera.position.set(
+                    iss.position.x + 3 * Math.cos(angle),
+                    iss.position.y + 1,
+                    iss.position.z + 3 * Math.sin(angle)
+                );
+                camera.lookAt(iss.position.x, iss.position.y, iss.position.z);
+            }
+            
+            // Update rocket position and rotation
+            if (missionPhase !== 'orbit' && missionPhase !== 'approach' && missionPhase !== 'docked') {
+                rocketPosition.x += rocketVelocity.x * simulationSpeed;
+                rocketPosition.y += rocketVelocity.y * simulationSpeed;
+                
+                rocket.position.set(rocketPosition.x, rocketPosition.y, rocketPosition.z);
+            } else {
+                rocket.position.set(rocketPosition.x, rocketPosition.y, rocketPosition.z);
+            }
+            
+            rocket.rotation.x = rocketRotation.x;
+            rocket.rotation.y = rocketRotation.y;
+            rocket.rotation.z = rocketRotation.z;
+        }
+        
+        function checkMissionPhases() {
+            if (missionPhase === 'launch' && missionTime >= boosterSeparationTime) {
+                missionPhase = 'boosters_separated';
+                missionPhaseElement.textContent = 'Odłączenie boosterów';
+                
+                // Remove boosters from rocket
+                rocket.children.forEach((child, index) => {
+                    if (child.userData.isBooster) {
+                        scene.remove(child);
+                        
+                        // Create booster separation effect
+                        const booster = child.clone();
+                        booster.position.copy(child.position);
+                        booster.position.add(rocket.position);
+                        
+                        // Add some velocity to separated boosters
+                        booster.userData.velocity = new THREE.Vector3(
+                            (Math.random() - 0.5) * 0.02,
+                            Math.random() * 0.01,
+                            (Math.random() - 0.5) * 0.02
+                        );
+                        
+                        scene.add(booster);
+                        
+                        // Animate boosters falling
+                        animateBoosterSeparation(booster);
+                    }
+                });
+                
+                // Remove boosters from rocket group
+                rocket.children = rocket.children.filter(child => !child.userData.isBooster);
+            }
+            else if (missionPhase === 'boosters_separated' && missionTime >= secondStageSeparationTime) {
+                missionPhase = 'second_stage';
+                missionPhaseElement.textContent = 'Odłączenie drugiego stopnia';
+            }
+            else if (missionPhase === 'second_stage' && missionTime >= orbitInsertionTime) {
+                missionPhase = 'orbit';
+                missionPhaseElement.textContent = 'Wejście na orbitę';
+            }
+            else if (missionPhase === 'orbit' && missionTime >= approachTime) {
+                missionPhase = 'approach';
+                missionPhaseElement.textContent = 'Podejście do ISS';
+            }
+            else if (missionPhase === 'approach' && missionTime >= dockingTime) {
+                missionPhase = 'docked';
+                missionPhaseElement.textContent = 'Zadokowano do ISS!';
+                
+                // Mission complete
+                setTimeout(() => {
+                    alert('Misja zakończona sukcesem! Sławosz Uznański-Wiśniewski bezpiecznie dotarł na Międzynarodową Stację Kosmiczną.');
+                }, 1000);
+            }
+        }
+        
+        function animateBoosterSeparation(booster) {
+            const startTime = Date.now();
+            
+            function animate() {
+                const time = (Date.now() - startTime) / 1000;
+                
+                if (time > 10) {
+                    scene.remove(booster);
+                    return;
+                }
+                
+                // Apply gravity
+                booster.userData.velocity.y -= 0.0005;
+                
+                // Update position
+                booster.position.x += booster.userData.velocity.x;
+                booster.position.y += booster.userData.velocity.y;
+                booster.position.z += booster.userData.velocity.z;
+                
+                // Add some rotation
+                booster.rotation.x += 0.02;
+                booster.rotation.z += 0.01;
+                
+                requestAnimationFrame(animate);
+            }
+            
+            animate();
+        }
+        
+        function onWindowResize() {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        }
+        
+        // Start the application
+        init();
+    </script>
+</body>
+</html>
